@@ -2,8 +2,6 @@ import { db } from "../config/db.js";
 import multer from "multer";
 import { Readable } from "stream";
 import readLine from "readline";
-import { error } from "console";
-import { rejects } from "assert";
 
 const multerConfig = multer();
 
@@ -30,8 +28,6 @@ const changePrice = (req, res) => {
     const productsLine = readLine.createInterface({
       input: readableFile,
     });
-
-    const updatedProducts = []; // Array para armazenar os produtos atualizados
 
     const errorMessages = [];
     let isFirstLine = true; // Flag para identificar a primeira linha
@@ -75,20 +71,11 @@ const changePrice = (req, res) => {
                   // Verifique se o produto é um pacote
                   const isPackage = await isProductPackage(product_code);
 
-                  // Adicione o produto à lista de produtos atualizados
-                  updatedProducts.push({
-                    code: product.code,
-                    name: product.name,
-                    currentPrice: product.sales_price,
-                    newPrice: new_price,
-                  });
-
                   if (isPackage) {
                     // Atualize o preço dos componentes do pacote
                     await updatePackageComponentsPrice(
                       product_code,
                       new_price,
-                      updatedProducts, // Passe o array de produtos atualizados
                       errorMessages
                     );
                   }
@@ -124,7 +111,7 @@ const changePrice = (req, res) => {
     if (errorMessages.length > 0) {
       res.status(400).json({ errors: errorMessages });
     } else {
-      res.status(200).json({ updatedProducts }); // Enviar os produtos atualizados como resposta
+      res.status(200).json("Preços atualizados com sucesso!");
     }
   });
 };
@@ -152,13 +139,6 @@ const updatePackageComponentsPrice = async (
 ) => {
   const components = await getComponentsOfPackage(pack_id);
   if (components.length > 0) {
-    // Obtenha a quantidade do pacote
-    const packageInfo = await getPackById(pack_id);
-    const quantity = packageInfo.qty;
-    const id = packageInfo.id;
-    console.log("id = " + id);
-    console.log("qty = " + quantity);
-
     // Calcular o preço total dos componentes
     let totalComponentPrice = 0;
 
@@ -178,26 +158,18 @@ const updatePackageComponentsPrice = async (
     // Calcular a diferença entre o novo preço do pacote e o preço total dos componentes
     const price_difference = new_price - totalComponentPrice;
 
-    // Atualizar os preços dos componentes com base na quantidade do pacote
+    // Atualizar os preços dos componentes com base na diferença
     for (const component of components) {
       const component_id = component.product_id;
 
       try {
         const componentProduct = await getProductByCode(component_id);
 
-        // Calcular o novo preço do componente com base na quantidade do pacote
-        let componentNewPrice = 0;
-
-        if (quantity > 1) {
-          // Dividir o preço do pacote pela quantidade e atribuir ao componente
-          componentNewPrice = new_price / quantity;
-        } else {
-          // Diminuir o preço do pacote pelo preço atual do componente e somar a diferença
-          componentNewPrice =
-            componentProduct.sales_price + (new_price - totalComponentPrice);
-        }
-
-        console.log("Componnet new price: " + componentNewPrice);
+        // Calcular o novo preço do componente proporcionalmente
+        const componentNewPrice =
+          componentProduct.sales_price +
+          (componentProduct.sales_price / totalComponentPrice) *
+            price_difference;
 
         // Verificar se o novo preço não é inferior ao custo do componente
         if (componentNewPrice < componentProduct.cost_price) {
@@ -212,7 +184,6 @@ const updatePackageComponentsPrice = async (
         errorMessages.push(
           `Erro ao atualizar o preço do componente com código ${component_id}`
         );
-        console.log(error);
       }
     }
 
@@ -234,22 +205,6 @@ const getComponentsOfPackage = (pack_id) => {
         }
       }
     );
-  });
-};
-
-const getPackById = (id) => {
-  return new Promise((resolve, reject) => {
-    db.query("SELECT * FROM packs WHERE pack_id = ?", [id], (err, rows) => {
-      if (err) {
-        reject(err);
-      } else {
-        if (rows.length > 0) {
-          resolve(rows[0]);
-        } else {
-          reject(`Produto com código ${id} não encontrado.`);
-        }
-      }
-    });
   });
 };
 
@@ -275,31 +230,21 @@ const getProductByCode = (product_code) => {
 
 const updateProductPrice = (product_code, new_price) => {
   return new Promise((resolve, reject) => {
-    // Verificar se new_price é um número válido e positivo
-    if (!isNaN(new_price) && new_price >= 0) {
-      // Atualize o preço do produto existente
-      db.query(
-        "UPDATE products SET sales_price = ? WHERE code = ?",
-        [new_price, product_code],
-        (err) => {
-          if (err) {
-            reject(err);
-            console.log(
-              "TESTE: preço: " + new_price + " code: " + product_code
-            );
-          } else {
-            // Sucesso na atualização
-            resolve();
-            console.log(
-              "TESTE: preço: " + new_price + " code: " + product_code
-            );
-          }
+    // Atualize o preço do produto existente
+    db.query(
+      "UPDATE products SET sales_price = ? WHERE code = ?",
+      [new_price, product_code],
+      (err) => {
+        if (err) {
+          reject(err);
+          console.log("TESTE: " + new_price + product_code);
+        } else {
+          // Sucesso na atualização
+          resolve();
+          console.log("TESTE: " + new_price + product_code);
         }
-      );
-    } else {
-      reject(`Novo preço inválido para o produto com código ${product_code}`);
-      console.log(error);
-    }
+      }
+    );
   });
 };
 
@@ -323,4 +268,4 @@ const getPacks = (req, res) => {
   });
 };
 
-export { changePrice, getProducts, getPacks, getPackById };
+export { changePrice, getProducts, getPacks };
