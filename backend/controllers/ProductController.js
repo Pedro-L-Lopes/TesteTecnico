@@ -185,14 +185,11 @@ const updatePackageComponentsPrice = async (
       try {
         const componentProduct = await getProductByCode(component_id);
 
-        // Calcular o novo preço do componente com base na quantidade do pacote
         let componentNewPrice = 0;
 
         if (quantity > 1) {
-          // Dividir o preço do pacote pela quantidade e atribuir ao componente
           componentNewPrice = new_price / quantity;
         } else {
-          // Diminuir o preço do pacote pelo preço atual do componente e somar a diferença
           componentNewPrice =
             componentProduct.sales_price + (new_price - totalComponentPrice);
         }
