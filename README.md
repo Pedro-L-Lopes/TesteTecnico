@@ -14,3 +14,10 @@ multer
 
 ## Dependencias necessárias para o backend
 ReactJs
+
+## variáveis de ambiente
+PORT=5000
+HOST=localhost
+USER= seu user
+PASSWORD= sua senha
+DATABASE= sua database
